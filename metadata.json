@@ -1,0 +1,7 @@
+{
+  "name": "Gemini Synth Pro",
+  "description": "A professional-grade polyphonic electronic synthesizer featuring ADSR envelopes, filters, effects, and a powerful live loop recorder with high-performance audio engine.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
