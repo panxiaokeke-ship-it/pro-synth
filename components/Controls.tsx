@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SynthSettings, WaveformType, Language, MIDIMapping } from '../types';
 import { TRANSLATIONS } from '../constants';
-import { Zap, Link as LinkIcon } from 'lucide-react';
+import { Zap, Link as LinkIcon, Crosshair } from 'lucide-react';
 
 interface ControlsProps {
   settings: SynthSettings;
@@ -100,13 +100,18 @@ export const Knob: React.FC<KnobProps> = ({
   const offset = (1 - normalizedValue) * arcLength;
 
   return (
-    <div className={`flex flex-col items-center select-none group relative ${isLearnMode ? 'cursor-help' : ''}`}>
+    <div className={`flex flex-col items-center select-none group relative ${isLearnMode ? 'cursor-pointer' : ''}`}>
       <div 
         className="relative cursor-ns-resize touch-none" 
         onMouseDown={onMouseDown}
         onTouchStart={onMouseDown}
       >
-        <svg width={size} height={size} className="transform -rotate-[225deg]">
+        {/* Pulsing Target Glow for active learning */}
+        {isCurrentLearning && (
+          <div className="absolute -inset-1.5 rounded-full bg-amber-500/20 animate-ping pointer-events-none" />
+        )}
+
+        <svg width={size} height={size} className="transform -rotate-[225deg] relative z-10">
           <circle 
             cx={size/2} cy={size/2} r={radius} fill="transparent" 
             stroke="rgba(39,39,42,1)" strokeWidth={stroke} 
@@ -114,7 +119,7 @@ export const Knob: React.FC<KnobProps> = ({
           />
           <circle 
             cx={size/2} cy={size/2} r={radius} fill="transparent" 
-            stroke={isLearnMode ? (isCurrentLearning ? '#f59e0b' : '#71717a') : '#06b6d4'} 
+            stroke={isLearnMode ? (isCurrentLearning ? '#f59e0b' : (mappedCC ? '#fbbf24' : '#3f3f46')) : '#06b6d4'} 
             strokeWidth={stroke} 
             strokeDasharray={`${arcLength} ${circumference}`} 
             strokeDashoffset={offset}
@@ -123,32 +128,33 @@ export const Knob: React.FC<KnobProps> = ({
           />
         </svg>
         <div 
-          className={`absolute inset-[3px] rounded-full border shadow-lg flex items-center justify-center transition-all duration-150 ${isLearnMode ? (isCurrentLearning ? 'bg-amber-950 border-amber-500 animate-pulse' : 'bg-zinc-950 border-zinc-800 opacity-60') : 'bg-zinc-900 border-zinc-800'}`} 
+          className={`absolute inset-[3px] rounded-full border shadow-lg flex items-center justify-center transition-all duration-150 z-20 ${isLearnMode ? (isCurrentLearning ? 'bg-amber-950 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-zinc-950 border-zinc-800 opacity-80') : 'bg-zinc-900 border-zinc-800'}`} 
           style={{ transform: `rotate(${rotation}deg)` }}
         >
-          <div className={`absolute top-0.5 w-0.5 h-1.5 rounded-full ${isLearnMode ? (isCurrentLearning ? 'bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,1)]' : 'bg-zinc-700') : 'bg-cyan-400 shadow-[0_0_4px_rgba(34,211,238,0.8)]'}`} />
+          <div className={`absolute top-0.5 w-0.5 h-1.5 rounded-full ${isLearnMode ? (isCurrentLearning ? 'bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,1)]' : 'bg-zinc-600') : 'bg-cyan-400 shadow-[0_0_4px_rgba(34,211,238,0.8)]'}`} />
         </div>
 
-        {/* Learn Mode Overlay */}
+        {/* Learn Mode Icon Overlays */}
         {isLearnMode && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
             {isCurrentLearning ? (
-              <Zap size={size * 0.4} className="text-amber-500" />
+              <Crosshair size={size * 0.45} className="text-amber-500 animate-pulse" />
             ) : mappedCC ? (
-              <LinkIcon size={size * 0.4} className="text-amber-500/80" />
+              <LinkIcon size={size * 0.35} className="text-amber-500/80" />
             ) : null}
           </div>
         )}
       </div>
+
       <div className="mt-1 leading-none flex flex-col items-center">
         <span className={`text-[6px] font-bold uppercase tracking-tighter transition-colors ${isCurrentLearning ? 'text-amber-500' : 'text-zinc-600'}`}>{label}</span>
         <span className={`text-[7px] mono font-black transition-colors ${isCurrentLearning ? 'text-amber-400' : 'text-cyan-500/80'}`}>{value >= 1000 ? (value/1000).toFixed(1) + 'k' : value.toFixed(value < 1 ? 2 : 0)}</span>
       </div>
       
-      {/* Small CC Label if mapped */}
+      {/* Visual Badge for Mapped CC */}
       {isLearnMode && mappedCC && (
-        <div className="absolute -top-1 -right-1 bg-amber-600 text-black text-[5px] font-black px-1 rounded-sm scale-75 border border-amber-400">
-          CC{mappedCC}
+        <div className="absolute -top-1 -right-1.5 bg-amber-600 text-black text-[5px] font-black px-1 py-0.5 rounded shadow-sm scale-75 border border-amber-400 z-40 animate-in fade-in zoom-in duration-300">
+          CC {mappedCC}
         </div>
       )}
     </div>
@@ -178,12 +184,36 @@ const Controls: React.FC<ControlsProps> = ({
     <div className="flex items-end justify-between overflow-x-auto no-scrollbar py-1">
       <div className="flex">
         <ControlGroup title="OSC">
-          <div className="flex flex-col gap-0.5">
+          <div 
+            className={`flex flex-col gap-0.5 p-1 rounded transition-all duration-300 relative group/wf ${isLearnMode ? 'cursor-pointer hover:bg-amber-500/5' : ''} ${learningParam === 'waveform' ? 'bg-amber-500/10 ring-1 ring-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : ''}`}
+            onClick={() => {
+              if (isLearnMode && setLearningParam) {
+                setLearningParam(learningParam === 'waveform' ? null : 'waveform');
+              }
+            }}
+          >
             {(['sine', 'square', 'sawtooth', 'triangle'] as WaveformType[]).map((w) => (
-              <button key={w} onClick={() => setSettings(p => ({ ...p, waveform: w }))} className={`w-6 py-0.5 rounded text-[5px] font-black uppercase border ${settings.waveform === w ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_5px_rgba(6,182,212,0.4)]' : 'bg-black border-zinc-800 text-zinc-700'}`}>
+              <button 
+                key={w} 
+                onClick={(e) => {
+                  if (isLearnMode) return;
+                  setSettings(p => ({ ...p, waveform: w }));
+                }} 
+                className={`w-6 py-0.5 rounded text-[5px] font-black uppercase border transition-all ${settings.waveform === w ? (isLearnMode ? 'bg-amber-500 text-black border-amber-400' : 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_5px_rgba(6,182,212,0.4)]') : 'bg-black border-zinc-800 text-zinc-700'} ${isLearnMode ? 'pointer-events-none' : ''}`}
+              >
                 {w.slice(0, 3)}
               </button>
             ))}
+            {isLearnMode && getMappedCC('waveform') && (
+              <div className="absolute -top-2 -left-2 bg-amber-600 text-black text-[5px] font-black px-1.5 py-0.5 rounded scale-75 border border-amber-400 z-10 shadow-lg">
+                CC {getMappedCC('waveform')}
+              </div>
+            )}
+            {learningParam === 'waveform' && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <Crosshair size={12} className="text-amber-500 animate-pulse" />
+              </div>
+            )}
           </div>
           <Knob label="DT" value={settings.detune} min={-100} max={100} step={1} onChange={(v) => setSettings(p => ({ ...p, detune: v }))} {...commonProps('detune')} />
           <Knob label="WD" value={settings.stereoWidth} min={0} max={1} step={0.01} onChange={(v) => setSettings(p => ({ ...p, stereoWidth: v }))} {...commonProps('stereoWidth')} />
@@ -205,12 +235,28 @@ const Controls: React.FC<ControlsProps> = ({
           <Knob label="DEL" value={settings.delay} min={0} max={0.8} step={0.01} onChange={(v) => setSettings(p => ({ ...p, delay: v }))} {...commonProps('delay')} />
           <Knob label="REV" value={settings.reverb} min={0} max={0.8} step={0.01} onChange={(v) => setSettings(p => ({ ...p, reverb: v }))} {...commonProps('reverb')} />
           <div className="flex flex-col items-center gap-1.5 px-2 border-l border-zinc-800/30 ml-1">
-             <span className="text-[5px] font-black text-zinc-600 uppercase">Glide</span>
+             <span className="text-[5px] font-black text-zinc-600 uppercase tracking-tighter">Glide</span>
              <button 
-              onClick={() => setSettings(p => ({ ...p, glide: !p.glide }))} 
-              className={`w-7 h-3.5 rounded-full relative transition-all duration-200 ${settings.glide ? 'bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.4)]' : 'bg-zinc-800'}`}
+              onClick={() => {
+                if (isLearnMode && setLearningParam) {
+                  setLearningParam(learningParam === 'glide' ? null : 'glide');
+                } else {
+                  setSettings(p => ({ ...p, glide: !p.glide }));
+                }
+              }} 
+              className={`w-7 h-3.5 rounded-full relative transition-all duration-300 ${isLearnMode ? (learningParam === 'glide' ? 'bg-amber-600 animate-pulse ring-2 ring-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.5)]' : (getMappedCC('glide') ? 'bg-amber-500/20 border border-amber-500/50' : 'bg-zinc-900 opacity-50 border border-zinc-800')) : (settings.glide ? 'bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.4)]' : 'bg-zinc-800')} ${isLearnMode ? 'cursor-pointer' : ''}`}
              >
-                <div className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white transition-all duration-200 ${settings.glide ? 'left-[16px]' : 'left-0.5'}`} />
+                <div className={`absolute top-0.5 w-2.5 h-2.5 rounded-full transition-all duration-300 ${settings.glide ? 'left-[16px]' : 'left-0.5'} ${isLearnMode ? 'bg-amber-200' : 'bg-white'}`} />
+                {isLearnMode && getMappedCC('glide') && (
+                  <div className="absolute -top-3 -right-3 bg-amber-600 text-black text-[5px] font-black px-1.5 py-0.5 rounded shadow-lg scale-75 border border-amber-400 z-10">
+                    CC {getMappedCC('glide')}
+                  </div>
+                )}
+                {learningParam === 'glide' && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <Zap size={10} className="text-white animate-pulse" />
+                  </div>
+                )}
              </button>
              <Knob label="SPD" value={settings.glideSpeed} min={0.01} max={1} step={0.01} size={24} onChange={(v) => setSettings(p => ({ ...p, glideSpeed: v }))} {...commonProps('glideSpeed')} />
           </div>

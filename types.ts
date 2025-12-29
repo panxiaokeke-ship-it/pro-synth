@@ -1,6 +1,7 @@
 
 export type WaveformType = 'sine' | 'square' | 'sawtooth' | 'triangle';
 export type Language = 'en' | 'zh';
+export type LoopMode = 'repeat' | 'oneshot' | 'pingpong';
 
 export interface EnvelopeSettings {
   attack: number;
@@ -46,6 +47,7 @@ export interface RecordedLoop {
   name: string;
   events: NoteEvent[];
   duration: number;
+  mode: LoopMode;
 }
 
 export interface StoredPreset {

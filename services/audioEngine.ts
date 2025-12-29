@@ -79,12 +79,15 @@ class AudioEngine {
     
     const now = this.ctx.currentTime;
     
-    // Glide / Portamento Implementation
-    // Transition from the last played frequency to the current one if glide is enabled
-    if (settings.glide && this.lastFrequency !== null && this.lastFrequency !== freq && settings.glideSpeed > 0) {
+    // Optimized Glide / Portamento Implementation
+    if (settings.glide && this.lastFrequency && this.lastFrequency > 0 && this.lastFrequency !== freq && settings.glideSpeed > 0) {
+      // Use a small safety buffer for time to ensure precision in the Web Audio scheduling
+      const startTime = now + 0.002; 
+      const duration = Math.max(settings.glideSpeed, 0.005); // Enforce 5ms min to prevent sharp transients/pops
+      
       osc.frequency.setValueAtTime(this.lastFrequency, now);
-      // Exponential ramp is used for musically natural pitch transitions
-      osc.frequency.exponentialRampToValueAtTime(freq, now + settings.glideSpeed);
+      osc.frequency.setValueAtTime(this.lastFrequency, startTime);
+      osc.frequency.exponentialRampToValueAtTime(freq, startTime + duration);
     } else {
       osc.frequency.setValueAtTime(freq, now);
     }
