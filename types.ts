@@ -24,6 +24,13 @@ export interface SynthSettings {
   reverb: number;
   delay: number;
   stereoWidth: number;
+  masterTune: number;
+  glide: boolean;
+  glideSpeed: number;
+}
+
+export interface MIDIMapping {
+  [ccNumber: number]: string; // ccNumber -> path (e.g., 'filter.frequency')
 }
 
 export interface NoteEvent {

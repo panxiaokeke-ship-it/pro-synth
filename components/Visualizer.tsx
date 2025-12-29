@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { audioEngine } from '../services/audioEngine';
-import { SynthSettings } from '../types';
+import { SynthSettings, WaveformType } from '../types';
 
 interface VisualizerProps {
   settings: SynthSettings;
@@ -27,42 +27,60 @@ const Visualizer: React.FC<VisualizerProps> = ({ settings }) => {
       const dataArray = new Uint8Array(bufferLength);
       analyzer.getByteFrequencyData(dataArray);
 
-      // Effect-driven trail
-      const trailOpacity = 0.2 + (settings.reverb * 0.1);
-      ctx.fillStyle = `rgba(0, 0, 0, ${1 - trailOpacity})`;
+      // Effect-driven trail: Reverb and Delay settings influence how much of the previous frame remains
+      const trailOpacity = 0.15 + (settings.reverb * 0.2) + (settings.delay * 0.1);
+      ctx.fillStyle = `rgba(10, 10, 12, ${1 - trailOpacity})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      const barWidth = (canvas.width / (bufferLength / 4));
+      const barWidth = (canvas.width / (bufferLength / 2));
       let x = 0;
 
-      const brightness = 50 + (settings.filter.frequency / 200);
-      const saturation = 60 + (settings.filter.resonance * 1.5);
+      // Filter cutoff influences color brightness/saturation
+      const brightness = Math.min(100, 30 + (settings.filter.frequency / 150));
+      const saturation = 50 + (settings.filter.resonance * 2);
 
-      for (let i = 0; i < bufferLength / 4; i++) {
+      for (let i = 0; i < bufferLength / 2; i++) {
         const value = dataArray[i];
         const percent = value / 255;
         const barHeight = percent * canvas.height;
 
-        let hue = 190;
+        // Base color determined by waveform
+        let hue = 0;
         switch (settings.waveform) {
-          case 'square': hue = 10; break;
-          case 'sawtooth': hue = 40; break;
-          case 'triangle': hue = 280; break;
+          case 'sine':
+            hue = 190 + (i / bufferLength) * 40; // Cyan/Blue
+            break;
+          case 'square':
+            hue = 0 + (i / bufferLength) * 30; // Red/Orange
+            break;
+          case 'sawtooth':
+            hue = 45 + (i / bufferLength) * 50; // Yellow/Amber
+            break;
+          case 'triangle':
+            hue = 280 + (i / bufferLength) * 60; // Purple/Magenta
+            break;
         }
 
-        ctx.fillStyle = `hsla(${hue}, ${saturation}%, ${brightness}%, ${0.4 + percent * 0.6})`;
+        ctx.fillStyle = `hsla(${hue}, ${saturation}%, ${brightness}%, ${0.3 + percent * 0.7})`;
         
+        // Drawing style shifts with waveform
         if (settings.waveform === 'square') {
+          // Sharp blocks for square wave
           ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
-        } else {
+        } else if (settings.waveform === 'sine') {
+          // Rounded, smooth bars for sine wave
           ctx.beginPath();
-          ctx.roundRect(x, canvas.height - barHeight, barWidth - 1, barHeight, [2, 2, 0, 0]);
+          ctx.roundRect(x, canvas.height - barHeight, barWidth - 1, barHeight, [4, 4, 0, 0]);
           ctx.fill();
+        } else {
+          // Default jagged bars
+          ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
         }
 
-        if (percent > 0.2) {
-          ctx.fillStyle = `hsla(${hue}, 100%, 80%, ${percent * 0.5})`;
-          ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, 1);
+        // Add a highlight glow at the top of each bar
+        if (percent > 0.1) {
+          ctx.fillStyle = `hsla(${hue}, 100%, 80%, ${percent})`;
+          ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, 2);
         }
 
         x += barWidth;
@@ -74,8 +92,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ settings }) => {
   }, [settings]);
 
   return (
-    <div className="w-full h-full bg-black flex items-center justify-center overflow-hidden">
-      <canvas ref={canvasRef} className="w-full h-full opacity-80" width={300} height={40} />
+    <div className="w-full h-32 bg-black/40 rounded-xl overflow-hidden border border-zinc-800 shadow-inner">
+      <canvas ref={canvasRef} className="w-full h-full" width={800} height={128} />
     </div>
   );
 };

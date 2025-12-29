@@ -32,61 +32,26 @@ export const NOTES = [
 ];
 
 export const KEY_BINDINGS: Record<string, string> = {
-  // Bottom Row (Octave 1)
-  'z': 'C3',
-  's': 'C#3',
-  'x': 'D3',
-  'd': 'D#3',
-  'c': 'E3',
-  'v': 'F3',
-  'g': 'F#3',
-  'b': 'G3',
-  'h': 'G#3',
-  'n': 'A3',
-  'j': 'A#3',
-  'm': 'B3',
-  // Top Row (Octave 2)
-  'q': 'C4',
-  '2': 'C#4',
-  'w': 'D4',
-  '3': 'D#4',
-  'e': 'E4',
-  'r': 'F4',
-  '5': 'F#4',
-  't': 'G4',
-  '6': 'G#4',
-  'y': 'A4',
-  '7': 'A#4',
-  'u': 'B4',
-  'i': 'C5',
+  'z': 'C3', 's': 'C#3', 'x': 'D3', 'd': 'D#3', 'c': 'E3', 'v': 'F3', 'g': 'F#3', 'b': 'G3', 'h': 'G#3', 'n': 'A3', 'j': 'A#3', 'm': 'B3',
+  'q': 'C4', '2': 'C#4', 'w': 'D4', '3': 'D#4', 'e': 'E4', 'r': 'F4', '5': 'F#4', 't': 'G4', '6': 'G#4', 'y': 'A4', '7': 'A#4', 'u': 'B4', 'i': 'C5',
 };
 
 export const DEFAULT_SETTINGS: SynthSettings = {
   waveform: 'sawtooth',
-  envelope: {
-    attack: 0.1,
-    decay: 0.2,
-    sustain: 0.5,
-    release: 0.5,
-  },
-  filter: {
-    frequency: 2000,
-    resonance: 1,
-    type: 'lowpass',
-  },
+  envelope: { attack: 0.1, decay: 0.2, sustain: 0.5, release: 0.5 },
+  filter: { frequency: 2000, resonance: 1, type: 'lowpass' },
   detune: 0,
   gain: 0.5,
   reverb: 0.3,
   delay: 0.2,
   stereoWidth: 0.8,
+  masterTune: 0,
+  glide: false,
+  glideSpeed: 0.1,
 };
 
-export const midiNoteToFrequency = (note: number): number => {
-  return 440 * Math.pow(2, (note - 69) / 12);
-};
-
+export const midiNoteToFrequency = (note: number): number => 440 * Math.pow(2, (note - 69) / 12);
 export const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-
 export const getNoteLabel = (midiNote: number): string => {
   const name = NOTE_NAMES[midiNote % 12];
   const octave = Math.floor(midiNote / 12) - 1;

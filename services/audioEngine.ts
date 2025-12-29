@@ -10,6 +10,7 @@ class AudioEngine {
   private delayGain: GainNode | null = null;
   private analyzer: AnalyserNode | null = null;
   private activeNotes: Map<string, { osc: OscillatorNode; gain: GainNode; panner: StereoPannerNode }> = new Map();
+  private lastFrequency: number | null = null;
 
   constructor() {}
 
@@ -27,13 +28,11 @@ class AudioEngine {
     this.filter.type = 'lowpass';
     this.filter.frequency.value = 2000;
 
-    // Basic Delay
     this.delay = this.ctx.createDelay(1.0);
     this.delay.delayTime.value = 0.3;
     this.delayGain = this.ctx.createGain();
     this.delayGain.gain.value = 0.2;
 
-    // Routing: Filter -> MasterGain -> Analyzer -> Destination
     this.filter.connect(this.masterGain);
     this.masterGain.connect(this.analyzer);
     this.analyzer.connect(this.ctx.destination);
@@ -51,19 +50,16 @@ class AudioEngine {
     this.masterGain.gain.setTargetAtTime(settings.gain, this.ctx.currentTime, 0.05);
     this.delayGain.gain.setTargetAtTime(settings.delay, this.ctx.currentTime, 0.05);
     
-    // Update existing panners for active notes
-    this.activeNotes.forEach((note, label) => {
+    this.activeNotes.forEach((note) => {
         const freq = note.osc.frequency.value;
         const panValue = this.calculatePan(freq, settings.stereoWidth);
         note.panner.pan.setTargetAtTime(panValue, this.ctx!.currentTime, 0.1);
+        note.osc.detune.setTargetAtTime(settings.detune + (settings.masterTune || 0), this.ctx!.currentTime, 0.05);
     });
   }
 
   private calculatePan(freq: number, stereoWidth: number): number {
-    // Spread notes based on frequency: Lower frequencies center, higher frequencies outer
-    // Frequency range C3 (130) to C5 (523)
     const normalized = (Math.log2(freq) - Math.log2(130)) / (Math.log2(523) - Math.log2(130));
-    // pan from -stereoWidth to +stereoWidth
     return (normalized * 2 - 1) * stereoWidth;
   }
 
@@ -80,13 +76,26 @@ class AudioEngine {
     const panner = this.ctx.createStereoPanner();
 
     osc.type = settings.waveform;
-    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-    osc.detune.setValueAtTime(settings.detune, this.ctx.currentTime);
+    
+    const now = this.ctx.currentTime;
+    
+    // Glide / Portamento Implementation
+    // Transition from the last played frequency to the current one if glide is enabled
+    if (settings.glide && this.lastFrequency !== null && this.lastFrequency !== freq && settings.glideSpeed > 0) {
+      osc.frequency.setValueAtTime(this.lastFrequency, now);
+      // Exponential ramp is used for musically natural pitch transitions
+      osc.frequency.exponentialRampToValueAtTime(freq, now + settings.glideSpeed);
+    } else {
+      osc.frequency.setValueAtTime(freq, now);
+    }
+    
+    // Update tracking for the next note's glide start point
+    this.lastFrequency = freq;
+    
+    osc.detune.setValueAtTime(settings.detune + (settings.masterTune || 0), this.ctx.currentTime);
     
     panner.pan.value = this.calculatePan(freq, settings.stereoWidth);
 
-    // Envelope Start
-    const now = this.ctx.currentTime;
     noteGain.gain.setValueAtTime(0, now);
     noteGain.gain.linearRampToValueAtTime(1, now + settings.envelope.attack);
     noteGain.gain.exponentialRampToValueAtTime(
@@ -114,22 +123,19 @@ class AudioEngine {
     gain.gain.exponentialRampToValueAtTime(0.001, now + settings.envelope.release);
 
     setTimeout(() => {
-      osc.stop();
-      osc.disconnect();
-      gain.disconnect();
-      panner.disconnect();
+      try {
+        osc.stop();
+        osc.disconnect();
+        gain.disconnect();
+        panner.disconnect();
+      } catch (e) {}
     }, settings.envelope.release * 1000 + 100);
 
     this.activeNotes.delete(label);
   }
 
-  public getAnalyzer() {
-    return this.analyzer;
-  }
-
-  public getContext() {
-    return this.ctx;
-  }
+  public getAnalyzer() { return this.analyzer; }
+  public getContext() { return this.ctx; }
 }
 
 export const audioEngine = new AudioEngine();
