@@ -7,9 +7,8 @@ import Visualizer from './components/Visualizer';
 import Controls from './components/Controls';
 import Keyboard from './components/Keyboard';
 import Looper from './components/Looper';
-import PresetManager from './components/PresetManager';
 import { 
-  Activity, Layers, X, Globe, Monitor, Save, Trash2, MoreVertical, Settings, Volume2, Cpu, Link, Zap, ChevronDown, ChevronUp, Crosshair, Terminal, FolderOpen
+  Activity, Layers, X, Globe, Monitor, Save, Trash2, MoreVertical, Settings, Volume2, Cpu, Link, Zap, ChevronDown, ChevronUp, Crosshair, Terminal
 } from 'lucide-react';
 
 const ENVELOPE_PRESETS: Record<string, { labelKey: keyof typeof TRANSLATIONS.en; settings: EnvelopeSettings }> = {
@@ -49,6 +48,8 @@ const App: React.FC = () => {
   const [midiEnabled, setMidiEnabled] = useState(false);
   const [savedPresets, setSavedPresets] = useState<StoredPreset[]>([]);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveName, setSaveName] = useState("");
   const [isLooperExpanded, setIsLooperExpanded] = useState(false);
 
   // MIDI CC Mapping State
@@ -139,24 +140,19 @@ const App: React.FC = () => {
     }
   }, [handleNoteStart, handleNoteEnd, learningParam, midiMappings]);
 
-  const handleSavePreset = (name: string) => {
-    const newPreset: StoredPreset = { 
-      id: Math.random().toString(36).substr(2, 9), 
-      name, 
-      settings: { ...settings }, 
-      timestamp: Date.now() 
-    };
+  const handleSaveCurrent = () => {
+    if (!saveName.trim()) return;
+    const newPreset: StoredPreset = { id: Math.random().toString(36).substr(2, 9), name: saveName.trim(), settings: { ...settings }, timestamp: Date.now() };
     setSavedPresets(prev => [newPreset, ...prev]);
-    setPresetName(name);
+    setPresetName(saveName.trim());
+    setIsSaving(false);
+    setSaveName("");
   };
 
   const loadPreset = (preset: StoredPreset) => {
     setSettings(preset.settings);
     setPresetName(preset.name);
-  };
-
-  const deletePreset = (id: string) => {
-    setSavedPresets(prev => prev.filter(p => p.id !== id));
+    setIsMoreMenuOpen(false);
   };
 
   useEffect(() => {
@@ -172,28 +168,16 @@ const App: React.FC = () => {
   return (
     <div className="h-screen w-screen bg-[#0a0a0c] text-zinc-200 flex flex-col overflow-hidden select-none">
       {/* HEADER BAR */}
-      <header className="h-14 px-4 flex items-center bg-zinc-950 border-b border-zinc-800 shrink-0 z-50">
-        <div className="flex items-center gap-3 mr-4">
-          <Activity size={20} className="text-cyan-500 animate-pulse" />
+      <header className="h-12 px-4 flex items-center bg-zinc-950 border-b border-zinc-800 shrink-0 z-50">
+        <div className="flex items-center gap-2 mr-4">
+          <Activity size={18} className="text-cyan-500 animate-pulse" />
           <div className="flex flex-col">
-            <span className="text-[11px] font-black uppercase tracking-widest text-white leading-none">PRO SYNTH</span>
-            <span className="text-[8px] font-bold text-zinc-500 mono leading-none mt-1">UNIT v2.5</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-white leading-none">PRO SYNTH</span>
+            <span className="text-[8px] font-bold text-zinc-500 mono leading-none mt-1">FIELD UNIT v2.5</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 border-l border-zinc-800 ml-2 pl-4 h-8">
-          <PresetManager 
-            currentSettings={settings}
-            onLoadPreset={loadPreset}
-            savedPresets={savedPresets}
-            onSavePreset={handleSavePreset}
-            onDeletePreset={deletePreset}
-            lang={lang}
-            currentPresetName={presetName}
-          />
-        </div>
-
-        <div className="flex-1 flex items-center h-full px-4 min-w-0">
+        <div className="flex-1 flex items-center h-full">
            <Looper 
             currentNotes={lastNoteEvents} 
             settings={settings} 
@@ -215,19 +199,18 @@ const App: React.FC = () => {
                 setIsLearnModeActive(true);
               }
             }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-300 ${isLearnModeActive ? 'bg-amber-500 border-amber-400 text-black shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-300 ${isLearnModeActive ? 'bg-amber-500 border-amber-400 text-black shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'}`}
           >
             <Zap size={14} className={isLearnModeActive ? 'animate-bounce' : ''} />
             <span className="text-[9px] font-black uppercase tracking-tighter hidden sm:inline">{isLearnModeActive ? 'LEARNING...' : 'MIDI LEARN'}</span>
           </button>
 
-          <div className="hidden sm:block w-32 h-10 rounded-lg border border-zinc-800 overflow-hidden bg-black/40">
+          <div className="hidden sm:block w-24 h-8 rounded border border-zinc-800 overflow-hidden bg-black/40">
             <Visualizer settings={settings} />
           </div>
-          
           <button 
             onClick={() => setIsMoreMenuOpen(true)} 
-            className="p-2.5 bg-zinc-900 rounded-lg border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
+            className="p-2 bg-zinc-900 rounded-lg border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
           >
             <MoreVertical size={20} />
           </button>
@@ -338,6 +321,49 @@ const App: React.FC = () => {
 
             <div className="overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 no-scrollbar">
               <div className="flex flex-col gap-8">
+                <section>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest flex items-center gap-2"><Cpu size={14}/> {t.savedPresets}</h3>
+                    <button 
+                      onClick={() => setIsSaving(!isSaving)} 
+                      className="flex items-center gap-1.5 text-[10px] font-black text-cyan-400 bg-cyan-950/30 border border-cyan-900/50 px-3 py-1.5 rounded-lg active:scale-95 transition-transform"
+                    >
+                      <Save size={14} /> {t.savePreset}
+                    </button>
+                  </div>
+
+                  {isSaving && (
+                    <div className="mb-4 p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl shadow-inner">
+                      <input 
+                        autoFocus placeholder={t.presetNameLabel}
+                        value={saveName} onChange={(e) => setSaveName(e.target.value)}
+                        className="w-full bg-transparent border-b border-zinc-800 p-2 text-sm text-cyan-400 focus:outline-none focus:border-cyan-500 mb-4 font-bold"
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={handleSaveCurrent} className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-black text-[10px] font-black py-2.5 rounded-lg transition-colors uppercase"> {t.save} </button>
+                        <button onClick={() => setIsSaving(false)} className="flex-1 bg-zinc-800 text-zinc-300 text-[10px] font-black py-2.5 rounded-lg transition-colors uppercase"> {t.cancel} </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                    {savedPresets.length === 0 ? (
+                      <div className="py-10 text-center text-zinc-700 text-[10px] border border-dashed border-zinc-900 rounded-xl uppercase font-black">
+                        {t.emptyLibrary}
+                      </div>
+                    ) : (
+                      savedPresets.map(p => (
+                        <div key={p.id} onClick={() => loadPreset(p)} className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/40 hover:bg-zinc-900 border border-zinc-800 hover:border-cyan-900 transition-all cursor-pointer group">
+                          <span className="text-[10px] font-bold text-zinc-400 group-hover:text-cyan-300 truncate">{p.name}</span>
+                          <button onClick={(e) => { e.stopPropagation(); setSavedPresets(prev => prev.filter(item => item.id !== p.id)); }} className="text-zinc-700 hover:text-red-500 transition-colors p-1">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </section>
+
                 <div className="grid grid-cols-2 gap-4">
                   <section>
                     <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-3 flex items-center gap-1.5"><Globe size={14}/> Language</h3>
@@ -354,18 +380,6 @@ const App: React.FC = () => {
                     </div>
                   </section>
                 </div>
-
-                <section>
-                   <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-3 flex items-center gap-1.5"><Save size={14}/> User Presets Summary</h3>
-                   <div className="p-4 bg-zinc-900/30 rounded-2xl border border-zinc-800 flex items-center justify-between">
-                     <div className="flex flex-col">
-                       <span className="text-[14px] font-black text-white">{savedPresets.length}</span>
-                       <span className="text-[8px] text-zinc-500 uppercase font-bold tracking-widest">Saved Sounds</span>
-                     </div>
-                     {/* FIX: Add missing FolderOpen icon here */}
-                     <FolderOpen className="text-cyan-500/50" size={32} />
-                   </div>
-                </section>
               </div>
 
               <section className="bg-zinc-900/20 p-4 rounded-2xl border border-zinc-800/50">
